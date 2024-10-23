@@ -26,8 +26,9 @@ const AdminOrders = () => {
   //============================================================
   let [page, setPage] = useState(1);
   let [total, setTotal] = useState(0);
+  let size = 1;
 
-  let getAdminOrders = async () => {
+  let getAdminOrders = async (page = 1, size = 10) => {
     page === 1 && window.scrollTo(0, 0);
     try {
       setLoading(true);
@@ -39,42 +40,25 @@ const AdminOrders = () => {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ page, size: 8 }),
+          body: JSON.stringify({ page, size }),
         }
-        // {
-        //   params: {
-        //     page: page,
-        //     size: 8,
-        //   },
-        //   headers: { Authorization: `Bearer ${token}` },
-        // }
       );
       let data = await res.json();
-      setPage(page + 1);
       setTotal(data.total);
-      setAdminOrders([...adminOrders, ...data.orderList]);
+      page === 1
+      ? setAdminOrders(data.orderList)
+        : setAdminOrders([...adminOrders, ...data.orderList]);
       setLoading(false);
     } catch (error) {
       console.log("order", error);
     }
   };
-
+  
+  console.log(page);
   useEffect(() => {
-    if (token && userInfo.role) getAdminOrders();
-  }, [token, userInfo.role]);
+    if (token && userInfo.role) getAdminOrders(page, size);
+  }, [token && userInfo.role]);
 
-  //   let deletefn = async (id) => {
-  //     if (id === userInfo._id) {
-  //       return alert("You cannot delete yourself");
-  //     }
-  //     let res = await fetch(`http://localhost:8000/admin/user/${id}`, {
-  //       method: "DELETE",
-  //       headers: { Authorization: `Bearer ${token}` },
-  //     });
-  //     let data = await res.json();
-  //     setOkdel((prev) => !prev);
-  //     await alert(data.msg);
-  //   };
 
   let statusHandle = async (oid, val) => {
     try {
@@ -105,7 +89,7 @@ const AdminOrders = () => {
   let [searchVal, setSearchVal] = useState("");
   // let [page, setPage] = useState(1);
 
-  let getSearchAdminOrders = async (e, page = 1) => {
+  let getSearchAdminOrders = async ( page = 1, size=10, e) => {
     e && e.preventDefault();
     try {
       if (!searchVal) return;
@@ -113,11 +97,10 @@ const AdminOrders = () => {
       let { data } = await axios.get(
         `${import.meta.env.VITE_BASE_URL}/admin/order-search`,
         {
-
           params: {
             keyword: searchVal,
-            page: page,
-            size: 8,
+            page,
+            size,
           },
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -133,56 +116,60 @@ const AdminOrders = () => {
     }
   };
   //===================================================
-  let [refundItem, setRefundItem]=useState()
-    let refundBkash = async (item) => {
-      try {
-        setLoading(true);
-        let { data } = await Axios.post(`/products/order/refund-bkash`, {
-          amount: item?.total,
-          paymentID: item.payment?.payment_id,
-          trxID: item.payment?.trxn_id,
-        });
-        setLoading(false);
-        if (data?.statusCode==='0000') {
+  let [refundItem, setRefundItem] = useState();
+
+  let refundBkash = async (item) => {
+    try {
+      setLoading(true);
+      let { data } = await Axios.post(`/products/order/refund-bkash`, {
+        amount: item?.total,
+        paymentID: item.payment?.payment_id,
+        trxID: item.payment?.trxn_id,
+      });
+      setLoading(false);
+      if (data?.statusCode === "0000") {
         toast.success(`BDT ${item?.total} refund successful`);
-        }
-      } catch (error) {
-        setLoading(false);
-        console.log(error);
+        searchVal
+          ? getSearchAdminOrders(1, page * size)
+          : getAdminOrders(1, page * size);
       }
-    };
-//===================================================
-    let searchBkash = async (item) => {
-      try {
-        setLoading(true);
-        let { data } = await Axios.get(`/products/order/search-bkash`, {
-          params:{trxID:item?.payment?.trxn_id}
-        });
-        setLoading(false);
-        if (data?.statusCode === "0000") {
-          alert(JSON.stringify(data))
-        }
-      } catch (error) {
-        setLoading(false);
-        console.log(error);
+    } catch (error) {
+      setLoading(false);
+      console.log(error);
+    }
+  };
+  //===================================================
+  let searchBkash = async (item) => {
+    try {
+      setLoading(true);
+      let { data } = await Axios.get(`/products/order/search-bkash`, {
+        params: { trxID: item?.payment?.trxn_id },
+      });
+      setLoading(false);
+      if (data?.statusCode === "0000") {
+        alert(JSON.stringify(data));
       }
-    };
-//===================================================
-    let queryBkash = async (item) => {
-      try {
-        setLoading(true);
-        let { data } = await Axios.get(`/products/order/query-bkash`, {
-          params: { paymentID: item?.payment?.payment_id },
-        });
-        setLoading(false);
-        if (data?.statusCode === "0000") {
-          alert(JSON.stringify(data))
-        }
-      } catch (error) {
-        setLoading(false);
-        console.log(error);
+    } catch (error) {
+      setLoading(false);
+      console.log(error);
+    }
+  };
+  //===================================================
+  let queryBkash = async (item) => {
+    try {
+      setLoading(true);
+      let { data } = await Axios.get(`/products/order/query-bkash`, {
+        params: { paymentID: item?.payment?.payment_id },
+      });
+      setLoading(false);
+      if (data?.statusCode === "0000") {
+        alert(JSON.stringify(data));
       }
-    };
+    } catch (error) {
+      setLoading(false);
+      console.log(error);
+    }
+  };
 
   // useEffect(() => {
   //   if (searchVal) getSearchAdminOrders();
@@ -237,20 +224,23 @@ const AdminOrders = () => {
             </div>
             <div className="row ">
               <InfiniteScroll
-                dataLength={adminOrders.length}
+                dataLength={adminOrders?.length}
                 next={
-                  !searchVal
-                    ? getAdminOrders
-                    : (e) => {
+                  searchVal
+                    ? (e) => {
                         setPage(page + 1);
-                        getSearchAdminOrders(e, page + 1);
+                        getSearchAdminOrders(page + 1, size, e);
+                      }
+                    : () => {
+                        setPage(page + 1);
+                        getAdminOrders(page + 1, size);
                       }
                 }
-                hasMore={adminOrders.length < total}
+                hasMore={adminOrders?.length < total}
                 loader={<h1>Loading...</h1>}
                 endMessage={<h4 className=" text-center">All items loaded</h4>}
               >
-                {adminOrders.length &&
+                {adminOrders?.length &&
                   adminOrders?.map((item, i) => {
                     return (
                       <div key={item._id} className=" mt-2 p-1 shadow">
@@ -292,7 +282,11 @@ const AdminOrders = () => {
                               <td>{item?.user?.email} </td>
                               <td>{item?.user?.address} </td>
                               <td>
-                                {item?.payment?.refund==='refunded' ? 'Refunded' :item?.payment?.status===true ?  "Success":'Failed'}
+                                {item?.payment?.refund === "refunded"
+                                  ? "Refunded"
+                                  : item?.payment?.status === true
+                                  ? "Success"
+                                  : "Failed"}
                               </td>
                               <td>{item?.products?.length} </td>
                               <td>{<PriceFormat price={item.total} />} </td>
@@ -308,7 +302,9 @@ const AdminOrders = () => {
                                   }
                                   data-bs-toggle="modal"
                                   data-bs-target="#refund"
-                                  disabled={item?.payment?.refund==='refunded'}
+                                  disabled={
+                                    item?.payment?.refund === "refunded"
+                                  }
                                 >
                                   Refund
                                 </button>
@@ -399,15 +395,18 @@ const AdminOrders = () => {
               </InfiniteScroll>
             </div>
             <div className="d-flex">
-              {adminOrders.length < total ? (
+              {adminOrders?.length < total ? (
                 <>
                   <button
                     onClick={
-                      !searchVal
-                        ? getAdminOrders
-                        : (e) => {
+                      searchVal
+                        ? (e) => {
                             setPage(page + 1);
-                            getSearchAdminOrders(e, page + 1);
+                            getSearchAdminOrders(page + 1, size, e);
+                          }
+                        : () => {
+                            setPage(page + 1);
+                            getAdminOrders(page + 1, size);
                           }
                     }
                     className="btn btn-primary my-3 px-3 mx-auto"
