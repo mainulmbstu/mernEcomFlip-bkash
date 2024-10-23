@@ -26,7 +26,7 @@ const AdminOrders = () => {
   //============================================================
   let [page, setPage] = useState(1);
   let [total, setTotal] = useState(0);
-  let size = 1;
+  let size = 10;
 
   let getAdminOrders = async (page = 1, size = 10) => {
     page === 1 && window.scrollTo(0, 0);
