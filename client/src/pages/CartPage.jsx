@@ -89,13 +89,9 @@ export const CartPage = () => {
         cart: selectedCart,
         total,
         callbackURL: `${import.meta.env.VITE_BASE_URL}/products/order/bkash-callback`,
-        orderID: 'demo-101',
-        reference:'demo'
       });
       setLoading(false);
       window.location.href = data?.bkashURL;
-      // if (data?.success) {
-      // }
     } catch (error) {
       setLoading(false);
       console.log(error);

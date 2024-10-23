@@ -118,13 +118,17 @@ const productList = async (req, res) => {
     let page = req.query.page ? req.query.page : 1;
     let size = req.query.size ? req.query.size : 4;
     let skip = (page - 1) * size;
-    let offerIds = (await ProductModel.find({offer:{$gt:0}}).sort({updatedAt:-1}).limit(5)).map(item=>item._id)
+    let offerIds = (
+      await ProductModel.find({ offer: { $gt: 0 } })
+        .sort({ updatedAt: -1 })
+        .limit(5)
+    ).map((item) => item._id);
 
-    const total = (await ProductModel.find({_id:{$nin:offerIds}})).length
-    const products = await ProductModel.find({ _id:{$nin:offerIds} })
+    const total = (await ProductModel.find({ _id: { $nin: offerIds } })).length;
+    const products = await ProductModel.find({ _id: { $nin: offerIds } })
       .skip(skip)
       .limit(size)
-      .populate("category", 'name')
+      .populate("category", "name")
       // .populate("category", 'name slug')
       // .populate("category", '-picture')
       .sort({ createdAt: -1 });
@@ -308,10 +312,10 @@ const productByCategory = async (req, res) => {
     const products = await ProductModel.find(args)
       .skip(skip)
       .limit(size)
-      .populate("category", 'name')
-    .sort({updatedAt:-1})
+      .populate("category", "name")
+      .sort({ updatedAt: -1 });
 
-    res.status(200).send({ products, total:total?.length });
+    res.status(200).send({ products, total: total?.length });
   } catch (error) {
     console.log(error);
     res.send({ msg: "error from productByCategory", error });
@@ -322,7 +326,8 @@ const moreInfo = async (req, res) => {
   try {
     const { pid } = req.params;
     const product = await ProductModel.findOne({ _id: pid }).populate(
-      "category", 'name'
+      "category",
+      "name"
     );
     // let products = product[0];
     product.rating = product.rating.toFixed(1);
@@ -367,7 +372,7 @@ const productSearch = async (req, res) => {
     const products = await ProductModel.find(args)
       .skip(skip)
       .limit(size)
-      .populate("category", 'name')
+      .populate("category", "name")
       .sort({ createdAt: -1 });
 
     res.status(200).send({
@@ -388,7 +393,7 @@ const similarProducts = async (req, res) => {
       category: cid,
       _id: { $ne: pid },
     })
-      .populate("category", 'name')
+      .populate("category", "name")
       .limit(12)
       .sort({ updatedAt: -1 });
     res.status(200).send({ msg: "got product from search", products });
@@ -427,7 +432,7 @@ const productFilter = async (req, res) => {
 const singleProduct = async (req, res) => {
   try {
     const singleProduct = await ProductModel.findOne({ _id: req.params.pid })
-      .populate("category", 'name')
+      .populate("category", "name")
       .populate("user", { password: 0 });
 
     if (!singleProduct) {
@@ -463,8 +468,6 @@ let deleteProduct = async (req, res) => {
 
 //============checkout ==========================
 
-
-
 //============== check oout by bkash
 
 const bkashConfig = {
@@ -478,27 +481,29 @@ const bkashConfig = {
 //====== payment_id is added in order model
 const orderCheckoutBkash = async (req, res) => {
   try {
-    const { cart, total, orderID, callbackURL, reference } = req.body;
+    const { cart, total, callbackURL } = req.body;
+    let tempId = uuidv4()
+    let order = {
+      products: cart,
+      total,
+      payment: {
+        payment_id: tempId,
+      },
+      user: req.user._id,
+    };
+    await OrderModel.create(order);
+    let orderSaved = await OrderModel.findOne({ "payment.payment_id": tempId });
 
-    
     const paymentDetails = {
       amount: total || 1, // your product price
       callbackURL: callbackURL, // your callback route
-      orderID: orderID || "Order_101", // your orderID
-      reference: reference || "1", // your reference
+      orderID: orderSaved?._id || "Order_101", // your orderID
+      reference: orderSaved?.total || '1', // your reference
     };
     const result = await createPayment(bkashConfig, paymentDetails);
+    if (result) orderSaved.payment.payment_id = result?.paymentID
+    await orderSaved.save()
 
-      let order = {
-        products: cart,
-        total,
-        payment: {
-          payment_id: result.paymentID,
-        },
-        user: req.user._id,
-      };
-      await OrderModel.create(order);
-    // res.redirect(result?.bkashURL);
     res.send(result);
   } catch (error) {
     console.log(error);
@@ -506,7 +511,7 @@ const orderCheckoutBkash = async (req, res) => {
       .status(500)
       .send({ success: false, msg: "error from orderCheckoutBkash", error });
   }
-}
+};
 
 const bkashCallback = async (req, res) => {
   try {
@@ -529,21 +534,19 @@ const bkashCallback = async (req, res) => {
         statusMessage: result?.statusMessage,
       };
     // You may use here WebSocket, server-sent events, or other methods to notify your client
-    if (response?.statusCode === '0000') {
+    if (response?.statusCode === "0000") {
       res.redirect(
         `${process.env.BASE_URL}/products/payment/success/${paymentID}/${result?.trxID}`
       );
-        } else {
+    } else {
       res.redirect(
         `${process.env.BASE_URL}/products/payment/fail/${paymentID}`
       );
-      
     }
-      
   } catch (e) {
     console.log(e);
   }
-}
+};
 //====================================
 const bkashRefund = async (req, res) => {
   try {
@@ -554,7 +557,7 @@ const bkashRefund = async (req, res) => {
       amount,
     };
     const result = await refundTransaction(bkashConfig, refundDetails);
-    if (result?.statusCode=== '0000') {
+    if (result?.statusCode === "0000") {
       await OrderModel.findOneAndUpdate(
         { "payment.trxn_id": trxID },
         { "payment.refund": "refunded" },
@@ -620,7 +623,7 @@ const orderSuccessBkash = async (req, res) => {
 //============================================================
 const orderFailBkash = async (req, res) => {
   try {
-  let {payment_id} = req.params;
+    let { payment_id } = req.params;
     let deleted = await OrderModel.findOneAndDelete({
       "payment.payment_id": payment_id,
     });
@@ -641,7 +644,6 @@ const orderCheckout = async (req, res) => {
     const { cart, total } = req?.body;
     let trxn_id = "DEMO" + uuidv4();
     let baseurl = process.env.BASE_URL;
-
 
     const data = {
       total_amount: total,
@@ -714,7 +716,7 @@ const orderSuccessSSL = async (req, res) => {
 
     let updated = await OrderModel.findOneAndUpdate(
       { "payment.trxn_id": trxn_id },
-      { "payment.status": true},
+      { "payment.status": true },
       { new: true }
     );
 
@@ -798,7 +800,7 @@ const ratingProduct = async (req, res) => {
 const getReview = async (req, res) => {
   try {
     const { pid } = req.params;
-    const reviews = await ReviewModel.find({ pid }).sort({createdAt:-1});
+    const reviews = await ReviewModel.find({ pid }).sort({ createdAt: -1 });
     res.status(200).json({ msg: "got review", reviews });
   } catch (error) {
     console.log(error);
@@ -811,33 +813,36 @@ const offerProductList = async (req, res) => {
   try {
     const { page, size } = req.query;
     let skip = (page - 1) * size;
-    
-    const total = (await ProductModel.find({offer:{$gt:0}})).length;
+
+    const total = (await ProductModel.find({ offer: { $gt: 0 } })).length;
     const products = await ProductModel.find({ offer: { $gt: 0 } })
-    .skip(skip)
-    .limit(size)
-    .populate("category", 'name')
-    .sort({ updatedAt: -1 });
-    
+      .skip(skip)
+      .limit(size)
+      .populate("category", "name")
+      .sort({ updatedAt: -1 });
+
     // console.log(total, products);
-  res.status(200).send({ success: true, products, total });
-} catch (error) {
-  console.log(error);
-  res
-    .status(500)
-    .send({ success: false, msg: "error from offerProductList", error });
-}
+    res.status(200).send({ success: true, products, total });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(500)
+      .send({ success: false, msg: "error from offerProductList", error });
+  }
 };
 
 //===============================================================
 const getCartUpdate = async (req, res) => {
   try {
     const { cartIdArr } = req.body;
-    let products=[]
+    let products = [];
     if (cartIdArr?.length) {
       for (let v of cartIdArr) {
-        const prod = await ProductModel.findById(v).populate("category", 'name');
-        prod && await products.push(prod)
+        const prod = await ProductModel.findById(v).populate(
+          "category",
+          "name"
+        );
+        prod && (await products.push(prod));
       }
     }
 
