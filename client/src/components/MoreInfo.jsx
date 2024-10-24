@@ -25,7 +25,7 @@ const MoreInfo = () => {
   const [loading, setLoading] = useState(false);
   const [img, setImg] = useState([]);
   const [reviewItem, setReviewItem] = useState('');
-  const [ratingItem, setRatingItem] = useState("");
+  const [ratingItem, setRatingItem] = useState("")
 
   //=================================
   let getMoreInfo = async () => {
