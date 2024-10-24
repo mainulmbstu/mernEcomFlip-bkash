@@ -45,7 +45,7 @@ const createProduct = async (req, res) => {
       if (!secure_url) {
         return res
           .status(500)
-          .send({ msg: "error uploading image", error: secure_url });
+          .send({ msg: "error uploading image", error: secure_url })
       }
     }
     let product = await ProductModel.create({
