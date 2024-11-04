@@ -232,7 +232,7 @@ img{
   top: 90px;
 }
 
-input[type="radio"] {
+.priceCategory input[type="radio"] {
   display: none;
 }
 input[type="radio"]:checked + label {

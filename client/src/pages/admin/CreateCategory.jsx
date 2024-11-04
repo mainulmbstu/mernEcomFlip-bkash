@@ -18,7 +18,7 @@ const CreateCategory = () => {
   let [loading, setLoading] = useState(false);
 
   let deleteCategory = async (id) => {
-    if (delItem?.children.length > 0)
+    if (delItem?.children?.length > 0)
       return alert("A parent category cannot be deleted with child");
     try {
       setLoading(true);

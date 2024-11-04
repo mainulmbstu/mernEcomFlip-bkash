@@ -11,8 +11,10 @@ const orderSchema = new mongoose.Schema(
     total:Number,
     payment: {
     payment_id:{type:String},
+    ssl_trxn_details:{type:Object},
     trxn_id:{type:String},
     refund:{type:String},
+    bkashNo:{type:String},
     status:{type:Boolean, default:false}
     },
 

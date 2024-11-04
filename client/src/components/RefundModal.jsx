@@ -2,7 +2,7 @@ import React from 'react'
 
 const RefundModal = ({ value }) => {
 
- let { refundItem, refundBkash } = value
+ let { refundItem, refundBkash, refundSSL } = value;
 
   return (
     <div>
@@ -55,7 +55,11 @@ const RefundModal = ({ value }) => {
                   NO
                 </button>
                 <button
-                  onClick={() => refundBkash(refundItem)}
+                  onClick={() => {
+                    refundItem?.payment?.payment_id
+                      ? refundBkash(refundItem)
+                      : refundSSL(refundItem);
+                  }}
                   type="button"
                   className="btn btn-primary w-25"
                   data-bs-dismiss="modal"

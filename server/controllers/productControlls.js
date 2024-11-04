@@ -45,7 +45,7 @@ const createProduct = async (req, res) => {
       if (!secure_url) {
         return res
           .status(500)
-          .send({ msg: "error uploading image", error: secure_url })
+          .send({ msg: "error uploading image", error: secure_url });
       }
     }
     let product = await ProductModel.create({
@@ -482,7 +482,7 @@ const bkashConfig = {
 const orderCheckoutBkash = async (req, res) => {
   try {
     const { cart, total, callbackURL } = req.body;
-    let tempId = uuidv4()
+    let tempId = uuidv4();
     let order = {
       products: cart,
       total,
@@ -498,11 +498,12 @@ const orderCheckoutBkash = async (req, res) => {
       amount: total || 1, // your product price
       callbackURL: callbackURL, // your callback route
       orderID: orderSaved?._id || "Order_101", // your orderID
-      reference: orderSaved?.total || '1', // your reference
+      reference: orderSaved?.total || "1", // your reference
     };
     const result = await createPayment(bkashConfig, paymentDetails);
-    if (result) orderSaved.payment.payment_id = result?.paymentID
-    await orderSaved.save()
+
+    if (result) orderSaved.payment.payment_id = result?.paymentID;
+    await orderSaved.save();
 
     res.send(result);
   } catch (error) {
@@ -523,7 +524,6 @@ const bkashCallback = async (req, res) => {
     };
     if (status === "success")
       result = await executePayment(bkashConfig, paymentID);
-
     if (result?.transactionStatus === "Completed") {
       // payment success
       // insert result in your db
@@ -536,7 +536,7 @@ const bkashCallback = async (req, res) => {
     // You may use here WebSocket, server-sent events, or other methods to notify your client
     if (response?.statusCode === "0000") {
       res.redirect(
-        `${process.env.BASE_URL}/products/payment/success/${paymentID}/${result?.trxID}`
+        `${process.env.BASE_URL}/products/payment/success/${paymentID}/${result?.trxID}/${result?.customerMsisdn}`
       );
     } else {
       res.redirect(
@@ -594,11 +594,15 @@ const bkashQuery = async (req, res) => {
 
 const orderSuccessBkash = async (req, res) => {
   try {
-    let { payment_id, trxn_id } = req.params;
+    let { payment_id, trxn_id, bkashNo } = req.params;
 
     let updated = await OrderModel.findOneAndUpdate(
       { "payment.payment_id": payment_id },
-      { "payment.status": true, "payment.trxn_id": trxn_id },
+      {
+        "payment.status": true,
+        "payment.trxn_id": trxn_id,
+        "payment.bkashNo": bkashNo,
+      },
       { new: true }
     );
 
@@ -652,7 +656,7 @@ const orderCheckout = async (req, res) => {
       success_url: `${baseurl}/products/payment/success/${trxn_id}`,
       fail_url: `${baseurl}/products/payment/fail/${trxn_id}`,
       cancel_url: `${baseurl}/products/payment/fail/${trxn_id}`,
-      ipn_url: "http://localhost:3030/ipn",
+      ipn_url: `${baseurl}/ipn`,
       shipping_method: "Courier",
       product_name: "Multi",
       product_category: "Multi",
@@ -693,6 +697,7 @@ const orderCheckout = async (req, res) => {
         total,
         payment: {
           trxn_id,
+          ssl_sessionkey: apiResponse.sessionkey,
         },
         user: req.user._id,
       };
@@ -712,11 +717,23 @@ const orderCheckout = async (req, res) => {
 
 const orderSuccessSSL = async (req, res) => {
   try {
+    const store_id = process.env.STORE_ID;
+    const store_passwd = process.env.STORE_PASS;
+    const is_live = false;
+
     let { trxn_id } = req.params;
 
+    const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
+
+    let sslDataByTranId = await sslcz.transactionQueryByTransactionId({
+      tran_id: trxn_id,
+    });
+    let sslDataByValId = await sslcz.validate({
+      val_id: sslDataByTranId.element[0].val_id,
+    });
     let updated = await OrderModel.findOneAndUpdate(
       { "payment.trxn_id": trxn_id },
-      { "payment.status": true },
+      { "payment.status": true, "payment.ssl_trxn_details": sslDataByValId },
       { new: true }
     );
 
@@ -754,6 +771,67 @@ const orderFailSSL = async (req, res) => {
     res
       .status(500)
       .send({ success: false, msg: "error from orderFail", error });
+  }
+};
+//=========================================
+const sslRefund = async (req, res) => {
+  try {
+    const store_id = process.env.STORE_ID;
+    const store_passwd = process.env.STORE_PASS;
+    const is_live = false;
+
+    const { card_ref_id, bank_tran_id, refund_amount } = req.query;
+    // const { sessionkey } = req.query;
+    const data = {
+      refund_amount,
+      bank_tran_id,
+      refund_remarks: "test",
+      refe_id: card_ref_id,
+    };
+    console.log(data);
+    const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
+    let sslDataRefund = await sslcz.initiateRefund({
+      data,
+    });
+    res.send(sslDataRefund);
+  } catch (e) {
+    console.log(e);
+  }
+};
+//============================================================
+const sslSearch = async (req, res) => {
+  try {
+    const store_id = process.env.STORE_ID;
+    const store_passwd = process.env.STORE_PASS;
+    const is_live = false;
+
+    const { val_id } = req.query;
+    // const { sessionkey } = req.query;
+    const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
+    let sslDataByValId = await sslcz.validate({ val_id });
+    res.send(sslDataByValId);
+  } catch (e) {
+    console.log(e);
+  }
+};
+
+//===============================================================
+const sslQuery = async (req, res) => {
+  try {
+    const store_id = process.env.STORE_ID;
+    const store_passwd = process.env.STORE_PASS;
+    const is_live = false;
+
+    const { tran_id } = req.query;
+    // const { sessionkey } = req.query;
+
+    const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
+    let sslDataByTranId = await sslcz.transactionQueryByTransactionId({
+      tran_id,
+    });
+    res.send(sslDataByTranId);
+  } catch (e) {
+    console.log(e);
   }
 };
 
@@ -881,4 +959,7 @@ module.exports = {
   bkashQuery,
   orderSuccessSSL,
   orderFailSSL,
+  sslQuery,
+  sslSearch,
+  sslRefund,
 };

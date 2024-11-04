@@ -9,7 +9,12 @@ let { Option } = Select;
 import InfiniteScroll from "react-infinite-scroll-component";
 import PriceFormat from "../../Helper/PriceFormat";
 import RefundModal from "../../components/RefundModal";
+import PaymentInfoModal from "../../components/PaymentInfoModal";
 import { toast } from "react-toastify";
+import { useReactToPrint } from "react-to-print";
+import { useRef } from "react";
+import Print from "../../components/Print";
+
 
 const AdminOrders = () => {
   let [adminOrders, setAdminOrders] = useState([]);
@@ -22,6 +27,8 @@ const AdminOrders = () => {
   ]);
   let [loading, setLoading] = useState(false);
   let { token, userInfo, Axios } = useAuth();
+  let [printItem, setPrintItem] = useState("");
+  let [paymentInfo, setPaymentInfo] = useState("");
 
   //============================================================
   let [page, setPage] = useState(1);
@@ -46,19 +53,17 @@ const AdminOrders = () => {
       let data = await res.json();
       setTotal(data.total);
       page === 1
-      ? setAdminOrders(data.orderList)
+        ? setAdminOrders(data.orderList)
         : setAdminOrders([...adminOrders, ...data.orderList]);
       setLoading(false);
     } catch (error) {
       console.log("order", error);
     }
   };
-  
-  console.log(page);
+
   useEffect(() => {
     if (token && userInfo.role) getAdminOrders(page, size);
   }, [token && userInfo.role]);
-
 
   let statusHandle = async (oid, val) => {
     try {
@@ -89,7 +94,7 @@ const AdminOrders = () => {
   let [searchVal, setSearchVal] = useState("");
   // let [page, setPage] = useState(1);
 
-  let getSearchAdminOrders = async ( page = 1, size=10, e) => {
+  let getSearchAdminOrders = async (page = 1, size = 10, e) => {
     e && e.preventDefault();
     try {
       if (!searchVal) return;
@@ -138,6 +143,7 @@ const AdminOrders = () => {
       console.log(error);
     }
   };
+
   //===================================================
   let searchBkash = async (item) => {
     try {
@@ -147,7 +153,7 @@ const AdminOrders = () => {
       });
       setLoading(false);
       if (data?.statusCode === "0000") {
-        alert(JSON.stringify(data));
+        setPaymentInfo(data)
       }
     } catch (error) {
       setLoading(false);
@@ -163,7 +169,7 @@ const AdminOrders = () => {
       });
       setLoading(false);
       if (data?.statusCode === "0000") {
-        alert(JSON.stringify(data));
+        setPaymentInfo(data);
       }
     } catch (error) {
       setLoading(false);
@@ -181,6 +187,68 @@ const AdminOrders = () => {
   useEffect(() => {
     setPage(1);
   }, [searchVal]);
+
+  //=============== print
+  let contentRef = useRef();
+  let printAddress = useReactToPrint({
+    contentRef,
+    documentTitle: print?._id,
+  });
+//===========================================
+  let searchSSL = async (item) => {
+   try {
+      setLoading(true);
+      let { data } = await Axios.get(`/products/order/search-ssl`, {
+        params: { val_id: item?.payment?.ssl_trxn_details?.val_id },
+        // params: { sessionkey: item?.payment?.ssl_sessionkey },
+      });
+     setLoading(false);
+      if (!data?.error) {
+        setPaymentInfo(data);
+      }
+    } catch (error) {
+      setLoading(false);
+      console.log(error);
+    }
+}
+//===========================================
+  let refundSSL = async (item) => {
+   try {
+      setLoading(true);
+      let { data } = await Axios.get(`/products/order/refund-ssl`, {
+        params: {
+          card_ref_id: item?.payment?.ssl_trxn_details?.card_ref_id,
+          bank_tran_id: item?.payment?.ssl_trxn_details?.bank_tran_id,
+          refund_amount: item?.total,
+        },
+        // params: { sessionkey: item?.payment?.ssl_sessionkey },
+      });
+     setLoading(false);
+      if (!data?.error) {
+        console.log(data);
+      }
+    } catch (error) {
+      setLoading(false);
+      console.log(error);
+    }
+}
+//===========================================
+  let querySSL = async (item) => {
+   try {
+      setLoading(true);
+      let { data } = await Axios.get(`/products/order/query-ssl`, {
+        params: { tran_id: item?.payment?.trxn_id },
+        // params: { sessionkey: item?.payment?.ssl_sessionkey },
+      });
+     setLoading(false);
+      if (!data?.error) {
+        setPaymentInfo(data?.element[0]);
+      }
+    } catch (error) {
+      setLoading(false);
+      console.log(error);
+    }
+}
 
   //===============================================================
   return (
@@ -255,9 +323,12 @@ const AdminOrders = () => {
                               <th scope="col">Item</th>
                               <th scope="col">Total Price</th>
                               <th scope="col">Time</th>
-                              <th scope="col">Refund</th>
+                              <th scope="col">Payment Method</th>
+                              <th scope="col">Set Print</th>
+                              <th scope="col">Print</th>
                               <th scope="col">Search</th>
                               <th scope="col">Query</th>
+                              <th scope="col">Refund</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -292,14 +363,75 @@ const AdminOrders = () => {
                               <td>{<PriceFormat price={item.total} />} </td>
                               <td>{moment(item?.createdAt).fromNow()} </td>
                               <td>
+                                {item?.payment?.payment_id ? "Bkash" : "SSL"}{" "}
+                              </td>
+                              <td>
+                                <button
+                                  onClick={() => {
+                                    setPrintItem(item);
+                                  }}
+                                  className="btn btn-info"
+                                  disabled={
+                                    item?.payment?.refund === "refunded"
+                                  }
+                                >
+                                  {printItem?._id === item?._id
+                                    ? "OK"
+                                    : "Set Print"}
+                                </button>
+                              </td>
+                              <td>
+                                <button
+                                  onClick={() => {
+                                    printAddress();
+                                  }}
+                                  className="btn btn-primary"
+                                  disabled={printItem?._id !== item?._id}
+                                >
+                                  Print
+                                </button>
+                              </td>
+                              <td>
+                                <button
+                                  onClick={() => {
+                                    item?.payment?.payment_id
+                                      ? searchBkash(item)
+                                      : searchSSL(item);
+                                  }}
+                                  type="button"
+                                  className="btn btn-primary"
+                                  data-bs-toggle="modal"
+                                  data-bs-target="#paymentAll"
+                                  disabled={
+                                    item?.payment?.refund === "refunded"
+                                  }
+                                >
+                                  search
+                                </button>
+                              </td>
+                              <td>
+                                <button
+                                  onClick={() => {
+                                    item?.payment?.payment_id
+                                      ? queryBkash(item)
+                                      : querySSL(item);
+                                  }}
+                                  type="button"
+                                  className="btn btn-primary"
+                                  data-bs-toggle="modal"
+                                  data-bs-target="#paymentAll"
+                                  disabled={
+                                    item?.payment?.refund === "refunded"
+                                  }
+                                >
+                                  query
+                                </button>
+                              </td>
+                              <td>
                                 <button
                                   onClick={() => setRefundItem(item)}
                                   type="button"
-                                  className={
-                                    item?.payment?.payment_id
-                                      ? "btn btn-primary"
-                                      : "d-none"
-                                  }
+                                  className="btn btn-primary"
                                   data-bs-toggle="modal"
                                   data-bs-target="#refund"
                                   disabled={
@@ -307,36 +439,6 @@ const AdminOrders = () => {
                                   }
                                 >
                                   Refund
-                                </button>
-                              </td>
-                              <td>
-                                <button
-                                  onClick={() => searchBkash(item)}
-                                  type="button"
-                                  className={
-                                    item?.payment?.payment_id
-                                      ? "btn btn-primary"
-                                      : "d-none"
-                                  }
-                                  // data-bs-toggle="modal"
-                                  // data-bs-target="#refund"
-                                >
-                                  search
-                                </button>
-                              </td>
-                              <td>
-                                <button
-                                  onClick={() => queryBkash(item)}
-                                  type="button"
-                                  className={
-                                    item?.payment?.payment_id
-                                      ? "btn btn-primary"
-                                      : "d-none"
-                                  }
-                                  // data-bs-toggle="modal"
-                                  // data-bs-target="#refund"
-                                >
-                                  query
                                 </button>
                               </td>
                             </tr>
@@ -421,7 +523,9 @@ const AdminOrders = () => {
             </div>
           </div>
         </div>
-        <RefundModal value={{ refundItem, refundBkash }} />
+        <RefundModal value={{ refundItem, refundBkash, refundSSL }} />
+        <Print ref={contentRef} printItem={printItem} />
+        <PaymentInfoModal paymentInfo={paymentInfo} />
       </div>
     </Layout>
   );

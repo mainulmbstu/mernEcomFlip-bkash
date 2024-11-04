@@ -38,7 +38,9 @@ router.post("/cart-update", productControlls.getCartUpdate);
 router.post("/order/checkout", loginMiddleware, productControlls.orderCheckout);
 router.post("/payment/success/:trxn_id",productControlls.orderSuccessSSL);
 router.post("/payment/fail/:trxn_id", productControlls.orderFailSSL);
-
+router.get("/order/query-ssl", productControlls.sslQuery);
+router.get("/order/search-ssl", productControlls.sslSearch);
+router.get("/order/refund-ssl", productControlls.sslRefund);
 //===============for stripe
 // router.post("/order/checkout", loginMiddleware, productControlls.orderCheckout);
 // router.get("/payment/success/:trxn_id",productControlls.orderSuccess);
@@ -50,7 +52,7 @@ router.get("/order/bkash-callback", productControlls.bkashCallback);
 router.post("/order/refund-bkash", productControlls.bkashRefund);
 router.get("/order/search-bkash", productControlls.bkashSearch);
 router.get("/order/query-bkash", productControlls.bkashQuery);
-router.get("/payment/success/:payment_id/:trxn_id",productControlls.orderSuccessBkash);
+router.get("/payment/success/:payment_id/:trxn_id/:bkashNo",productControlls.orderSuccessBkash);
 router.get("/payment/fail/:payment_id", productControlls.orderFailBkash);
 
 

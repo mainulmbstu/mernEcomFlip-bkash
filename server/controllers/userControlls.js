@@ -139,11 +139,9 @@ const loggedUser = async (req, res) => {
 //============================================================
 const userUpdate = async (req, res) => {
   try {
-    const { id, name, email, password, phone, address } = req.body;
-     const mobileExist = await UserModel.findOne({ phone });
-     if (mobileExist) {
-       return res.status(400).send({ msg: "Mobile number already exist" });
-     }
+    let { id, name, storeName, email, password, phone, address } = req.body;
+    storeName = storeName?.toUpperCase();
+
     let user = await UserModel.findById(req.user._id, {
       password: 0,
       role: 0,
@@ -151,10 +149,19 @@ const userUpdate = async (req, res) => {
     if (!user) {
       return res.status(400).send({ msg: "No user found" });
     }
+
+    if (phone !== user?.phone) {
+      const mobileExist = await UserModel.findOne({ phone });
+      if (mobileExist) {
+        return res.status(400).send({ msg: "Mobile number already exist" });
+      }
+    }
+
     //  let hashedPass= await bcrypt.hash(password, 10)
 
     if (id) user._id = id;
     if (name) user.name = name;
+    if (storeName) user.storeName = storeName;
     if (email) user.email = email;
     if (phone) user.phone = phone;
     if (password) user.password = await bcrypt.hash(password, 10);
@@ -181,7 +188,6 @@ const userUpdate = async (req, res) => {
       .send({ success: false, msg: "error from user update", error });
   }
 };
-
 //===========================================================================
 const userOrders = async (req, res) => {
   try {

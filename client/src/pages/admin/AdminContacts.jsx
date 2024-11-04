@@ -43,7 +43,8 @@ const AdminContacts = () => {
     if (token && userInfo.role) getAdminContacts(page, size);
   }, [token, userInfo.role]);
 
-  let unread = contacts.filter(item => item?.replies?.length === 0)
+  let unread =
+    contacts?.length && contacts.filter((item) => item?.replies?.length === 0);
 
   return (
     <Layout title={"Admin contacts"}>

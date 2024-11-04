@@ -4,7 +4,7 @@ import { useSearch } from "../context/SearchContext";
 import { useNavigate } from "react-router-dom";
 import PriceFormat from "../Helper/PriceFormat";
 import { Checkbox } from "antd";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import { useEffect } from "react";
 
@@ -12,43 +12,70 @@ import { useEffect } from "react";
 export const CartPage = () => {
   let { token, userInfo, Axios } = useAuth();
   let { cart, setCart } = useSearch();
-  let [ selectedCart, setSelectedCart ] = useState([]);
-  let [ loading, setLoading ] = useState(false);
+  let [selectedCart, setSelectedCart] = useState([]);
+  let [loading, setLoading] = useState(false);
+  let [gateway, setGateway] = useState("");
   let navigate = useNavigate();
 
   //========= cart update auto
 
-
   useEffect(() => {
-    let cartIdArr = cart?.length && cart.map(item => item?._id)
+    let cartIdArr = cart?.length && cart.map((item) => item?._id);
     let getUpdatedProducts = async () => {
       try {
-        let {data} = await Axios.post(`/products/cart-update`, { cartIdArr });
-        
+        let { data } = await Axios.post(`/products/cart-update`, { cartIdArr });
+
         setCart(data.products);
         localStorage.setItem("cart", JSON.stringify(data.products));
-        } catch (error) {
-          console.log(error);
-        }
-    }
-    getUpdatedProducts()
-  }, [])
-  
-
-    let cartItemHandle = (checked, checkedItem) => {
-      let all = [...selectedCart];
-      if (checked) {
-        all.push(checkedItem);
-      } else {
-        all = all.filter((item) => item._id !== checkedItem._id);
+      } catch (error) {
+        console.log(error);
       }
-      setSelectedCart(all);
+    };
+    getUpdatedProducts();
+  }, []);
+
+  // let ref1 = useRef()
+  let [refList, setRefList] = useState([]);
+
+  let ref1 = useCallback((el) => {
+    setRefList((prev) => [...prev, el]);
+  }, []);
+
+  // console.log(refList[0]?.id);
+
+  let cartItemHandle = (checked, checkedItem) => {
+    let all = [...selectedCart];
+    if (checked) {
+      all.push(checkedItem);
+    } else {
+      all = all.filter((item) => item._id !== checkedItem._id);
+      let one =
+        refList?.length &&
+        refList.find((item) => item?.id === checkedItem?._id);
+      one.value = "";
+    }
+    setSelectedCart(all);
+  };
+
+    let colorHandle = (id, e) => {
+      let findObj =
+        selectedCart.length && selectedCart.find((item) => item._id === id);
+      if (!findObj) {
+        alert("Please select the item first");
+        let one = refList?.length && refList.find((item) => item?.id === id);
+        return (one.value = "");
+      }
+      let tempObj = { ...findObj };
+      tempObj.color = [e.target.value];
+      let tempArr2 = selectedCart.filter((item) => item._id !== id);
+      tempArr2.push(tempObj);
+      setSelectedCart(tempArr2);
     };
 
-
   let amountHandle = (id, d) => {
-    let isSelected = selectedCart.length && selectedCart.find(item => item._id === id)
-    if (!isSelected) return alert('Please select the item first')
+    let isSelected =
+      selectedCart.length && selectedCart.find((item) => item._id === id);
+    if (!isSelected) return alert("Please select the item first");
     let ind = -1;
     selectedCart.length &&
       selectedCart?.forEach((data, index) => {
@@ -60,16 +87,27 @@ export const CartPage = () => {
     setSelectedCart([...tempArr]);
   };
 
-  let total =
+  let totalFrac =
     selectedCart?.length &&
     selectedCart?.reduce((previous, current) => {
-      return previous +( current?.price - current?.price * current?.offer/100)* current.amount;
+      return (
+        previous +
+        (current?.price - (current?.price * current?.offer) / 100) *
+          current.amount
+      );
     }, 0);
-
+  
+let total =Math.round(totalFrac)
+  
   let removeCartItem = (id) => {
     try {
+      let isSelected =
+        selectedCart?.length && selectedCart.find((item) => item._id === id);
+      if (isSelected) {
+        return alert("Deselect the item first to remove from cart");
+      }
       let index = cart?.findIndex((item) => item._id === id);
-      let newCart=[...cart]
+      let newCart = [...cart];
       newCart?.splice(index, 1);
       setCart(newCart);
       localStorage.setItem("cart", JSON.stringify(newCart));
@@ -78,8 +116,7 @@ export const CartPage = () => {
     }
   };
 
-
-//===================================================
+  //===================================================
   let checkoutBkash = async () => {
     try {
       if (!selectedCart.length)
@@ -88,7 +125,9 @@ export const CartPage = () => {
       let { data } = await Axios.post(`/products/order/checkout-bkash`, {
         cart: selectedCart,
         total,
-        callbackURL: `${import.meta.env.VITE_BASE_URL}/products/order/bkash-callback`,
+        callbackURL: `${
+          import.meta.env.VITE_BASE_URL
+        }/products/order/bkash-callback`,
       });
       setLoading(false);
       window.location.href = data?.bkashURL;
@@ -97,16 +136,13 @@ export const CartPage = () => {
       console.log(error);
     }
   };
-//===================================================
-
-
-
-
+  //===================================================
 
   //============== for ssl
   let checkout = async () => {
     try {
-      if (!selectedCart.length) return alert('No item has been selected for check out')
+      if (!selectedCart.length)
+        return alert("No item has been selected for check out");
       let res = await fetch(
         `${import.meta.env.VITE_BASE_URL}/products/order/checkout`,
         {
@@ -152,6 +188,11 @@ export const CartPage = () => {
                           onChange={(e) =>
                             cartItemHandle(e.target.checked, item)
                           }
+                          checked={
+                            selectedCart?.length &&
+                            selectedCart?.filter((p) => p?._id === item?._id)
+                              .length > 0
+                          }
                         ></Checkbox>
                       </div>
                       <div className="col-9">
@@ -182,6 +223,51 @@ export const CartPage = () => {
                           <p className="m-0">
                             Category: {item?.category?.name}{" "}
                           </p>
+                          <p
+                            className={
+                              item?.color?.length ? "m-0 py-2 w-50" : "d-none"
+                            }
+                          >
+                            <select
+                              ref={ref1}
+                              onChange={(e) => colorHandle(item._id, e)}
+                              name=""
+                              id={item?._id}
+                              // value={'colormm'}
+                              className="form-select"
+                            >
+                              <option value={""}>Select Color</option>
+                              {item?.color?.length &&
+                                item?.color.map((clr) => (
+                                  <option key={clr} value={clr}>
+                                    {clr}
+                                  </option>
+                                ))}
+                            </select>
+                          </p>
+                          {/* <div className="mb-2">
+                            <input
+                              ref={ref1}
+                              className="form-control"
+                              list="mm"
+                              type={"text"}
+                          
+                              placeholder={"bbbbbbbb"}
+                              onChange={(e) => colorHandle(item._id, e)}
+                            />
+
+                            <datalist id="mm">
+                              {item?.color?.length &&
+                                item?.color.map((clr) => {
+                                  return (
+                                    <option
+                                      key={clr}
+                                      value={clr}
+                                    ></option>
+                                  );
+                                })}
+                            </datalist>
+                          </div> */}
                           <div>
                             <button
                               onClick={() => amountHandle(item._id, -1)}
@@ -258,20 +344,53 @@ export const CartPage = () => {
                 </button>
               </div>
             )}
+
             {cart?.length && token ? (
               <div className="my-4 w-100">
-                <button onClick={checkout} className="btn btn-danger w-100">
-                  Check out(SSL)
+                <div className=" text-start">
+                  <div>
+                    <input
+                      onChange={() => setGateway("ssl")}
+                      className=""
+                      type="radio"
+                      name="same"
+                      id="ssl"
+                      checked={gateway === "ssl" || gateway === ""}
+                    />
+                    <label className="m-2" htmlFor="ssl">
+                      <img
+                        src="sslcommerz.jpeg"
+                        alt="ssl"
+                        width={60}
+                        height={60}
+                      />
+                      {" SSL COMMERZ"}
+                    </label>
+                  </div>
+                  <div>
+                    <input
+                      onChange={() => setGateway("bkash")}
+                      type="radio"
+                      name="same"
+                      id="bkash"
+                      // checked={user.gender === "Male"}
+                    />
+                    <label className="m-2" htmlFor="bkash">
+                      <img src="bkash.png" alt="bkash" width={50} height={50} />
+                      {" BKASH "}
+                    </label>
+                  </div>
+                </div>
+                <button
+                  onClick={gateway === "bkash" ? checkoutBkash : checkout}
+                  className="btn btn-danger w-100"
+                >
+                  Check out
                 </button>
               </div>
             ) : (
               ""
             )}
-            <div className="my-4 w-100">
-              <button onClick={checkoutBkash} className="btn btn-info w-100">
-                Check out(bkash)
-              </button>
-            </div>
           </div>
         </div>
       </div>
