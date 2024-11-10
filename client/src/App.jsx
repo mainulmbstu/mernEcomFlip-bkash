@@ -27,16 +27,17 @@ import ResetNewPassword from "./pages/user/ResetNewPassword";
 import AdminContacts from "./pages/admin/AdminContacts";
 import CategoryHeader from "./components/CategoryHeader";
 import AdminOffer from "./pages/admin/AdminOffer";
+import { LoggedIn } from "./components/routes/LoggedIn";
 
 // let CreateProduct= lazy(()=>import('./pages/admin/CreateProduct'))
-let Dashboard= lazy(()=>import("./pages/user/Dashboard"))
-let AdminPanel= lazy(()=>import('./pages/admin/AdminPanel'))
-let MoreInfo= lazy(()=>import("./components/MoreInfo"))
-let OfferPage= lazy(()=>import('./components/OfferPage'))
+let Dashboard = lazy(() => import("./pages/user/Dashboard"));
+let AdminPanel = lazy(() => import("./pages/admin/AdminPanel"));
+let MoreInfo = lazy(() => import("./components/MoreInfo"));
+let OfferPage = lazy(() => import("./components/OfferPage"));
 let UserList = lazy(() => import("./pages/admin/UserList"));
 let CartPage = lazy(() => import("./pages/CartPage"));
-let CreateCategory= lazy(()=>import('./pages/admin/CreateCategory'))
-let Home = lazy(() => import('./pages/Home'))
+let CreateCategory = lazy(() => import("./pages/admin/CreateCategory"));
+let Home = lazy(() => import("./pages/Home"));
 let AdminOrders = lazy(() => import("./pages/admin/AdminOrders"));
 let Orders = lazy(() => import("./pages/user/Orders"));
 let About = lazy(() => wait(1).then(() => import("./pages/About")));
@@ -45,33 +46,37 @@ let CreateProduct = lazy(() =>
 );
 
 let wait = (time) => {
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     setTimeout(() => {
-      resolve()
-    }, time)
-  })
-}
+      resolve();
+    }, time);
+  });
+};
 
-{/* <button onClick={() => {
+{
+  /* <button onClick={() => {
   import('../folder/compo').then((module)=>setSome(module.exportedName))
-}}>for learn</button> */}
+}}>for learn</button> */
+}
 
 const App = () => {
   return (
     <div className="App ">
       <BrowserRouter>
-        <Layout/>
+        <Layout />
         <Header />
-        <CategoryHeader/>
+        <CategoryHeader />
         <Suspense fallback={<h2>Loading...</h2>}>
           <Routes>
             <Route path="/" element=<Home /> />
             <Route path="/gallery" element=<Gallery /> />
             <Route path="/offers" element=<OfferPage /> />
-            <Route path="/resetnewpassword/:email" element=<ResetNewPassword /> />
 
             <Route path="/products/search" element=<SearchResults /> />
-            <Route path="/products/payment/success/:oid" element=<PaymentSuccess /> />
+            <Route
+              path="/products/payment/success/:oid"
+              element=<PaymentSuccess />
+            />
             <Route path="/products/payment/fail" element=<PaymentFail /> />
             <Route path="/cart" element=<CartPage /> />
             <Route path="/products/more-info/:pid" element=<MoreInfo /> />
@@ -95,9 +100,16 @@ const App = () => {
               <Route path="admin/contacts" element=<AdminContacts /> />
               <Route path="admin/offers" element=<AdminOffer /> />
             </Route>
-            <Route path="/login" element=<Login /> />
-            <Route path="/register" element=<Register /> />
-            <Route path="/forgotpassword" element=<ForgotPassword /> />
+            <Route path="/*" element=<LoggedIn />>
+              <Route path="login" element=<Login /> />
+              <Route path="register" element=<Register /> />
+              <Route path="forgotpassword" element=<ForgotPassword /> />
+              <Route
+                path="resetnewpassword/:email"
+                element=<ResetNewPassword />
+              />
+            </Route>
+
             <Route path="/contacts" element=<Contacts /> />
             <Route path="/about" element=<About /> />
             <Route path="/privacy" element=<Privacy /> />
